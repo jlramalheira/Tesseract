@@ -1,0 +1,66 @@
+{
+  "name": "Resource",
+  "base": "PersistedModel",
+  "idInjection": true,
+  "options": {
+    "validateUpsert": true
+  },
+  "properties": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "description": {
+      "type": "string",
+      "required": true
+    },
+    "rating": {
+      "type": "number"
+    },
+    "counter": {
+      "type": "number"
+    },
+    "tagsStringify": {
+      "type": "string"
+    },
+    "creation": {
+      "type": "date"
+    },
+    "lastUpdate": {
+      "type": "date"
+    }
+  },
+  "validations": [],
+  "relations": {
+    "archive": {
+      "type": "hasOne",
+      "model": "Archive",
+      "foreignKey": ""
+    },
+    "tags": {
+      "type": "hasMany",
+      "model": "Tag",
+      "foreignKey": "tags"
+    },
+    "user": {
+      "type": "hasOne",
+      "model": "User",
+      "foreignKey": ""
+    }
+  },
+  "acls": [
+    {
+      "accessType": "WRITE",
+      "principalType": "ROLE",
+      "principalId": "$unauthenticated",
+      "permission": "DENY"
+    },
+    {
+      "accessType": "READ",
+      "principalType": "ROLE",
+      "principalId": "$everyone",
+      "permission": "ALLOW"
+    }
+  ],
+  "methods": {}
+}
