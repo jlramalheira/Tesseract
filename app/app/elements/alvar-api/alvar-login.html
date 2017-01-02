@@ -1,0 +1,163 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html" />
+<link rel="import" href="../../bower_components/iron-ajax/iron-ajax.html" />
+<link rel="import" href="../../bower_components/iron-localstorage/iron-localstorage.html" />
+<link rel="import" href="../../bower_components/iron-input/iron-input.html" />
+<link rel="import" href="../../bower_components/iron-form/iron-form.html" />
+<link rel="import" href="../../bower_components/paper-button/paper-button.html" />
+<link rel="import" href="../../bower_components/paper-dialog/paper-dialog.html" />
+<link rel="import" href="../../bower_components/paper-dialog-scrollable/paper-dialog-scrollable.html"
+/>
+<link rel="import" href="../../bower_components/paper-spinner/paper-spinner.html" />
+<link rel="import" href="../../bower_components/paper-input/paper-input-container.html" />
+
+<link rel="import" href="alvar-authentication.html">
+
+<dom-module id="alvar-login">
+  <template>
+    <style>
+      #login-dialog {
+        --paper-dialog: {
+          background-color: #fff;
+          height: auto;
+        };
+      }
+
+      #login-dialog-scrollable {
+        height: 200px;
+        overflow: hidden;
+      }
+
+      .text-danger {
+        color: #a94442;
+      }
+
+      [data-loging] {
+        opacity: 0;
+      }
+
+      paper-spinner {
+        margin: -1rem auto;
+        display: block;
+      }
+
+    </style>
+
+    <iron-ajax
+        id="ajax"
+        url="http://0.0.0.0:3000/api/Users/login"
+        handle-as="json"
+        content-type="application/json"
+        method="POST"
+        on-response="_handleLoginResponse"
+        on-error="_handleErrorResponse"></iron-ajax>
+
+    <iron-localstorage id="storage" name="alvar-authorization"></iron-localstorage>
+
+    <paper-dialog id="login-dialog" modal>
+      <h2>Login</h2>
+      <div data-loging$="[[loging]]">
+        <form is="iron-form" id="form" method="post" action="/">
+          <paper-input-container id="form-container-email">
+            <label>Email</label>
+            <input is="iron-input" id="form-email" type="email" name="email" required/>
+            <paper-input-error>Informe um e-mail válido</paper-input-error>
+          </paper-input-container>
+          <paper-input-container>
+            <label>Senha</label>
+            <input is="iron-input" id="form-password" type="password" name="password" required/>
+            <paper-input-error>Informe a senha</paper-input-error>
+          </paper-input-container>
+        </form>
+        <div class="text-danger" id="loginErrorMessage"></div>
+      </div>
+      <paper-spinner id="spinner" active="[[loging]]"></paper-spinner>
+      <div class="buttons" data-loging$="[[loging]]">
+        <paper-button on-click="_loginCancelHandlerClick">Cancelar</paper-button>
+        <paper-button on-click="_loginHandlerClick">Login</paper-button>
+      </div>
+    </paper-dialog>
+
+  </template>
+  <script>
+    Polymer({
+      is: 'alvar-login',
+      properties: {
+        loging: {
+          type: Boolean,
+          value: false,
+          readOnly: true,
+          notify: true
+        }
+      },
+
+      open: function() {
+        var login = this.$['login-dialog'];
+        login.fit();
+        login.open();
+      },
+
+      close: function() {
+        this.$['login-dialog'].close();
+      },
+
+      login: function(user, email, password) {
+        var credentials = {
+          'username': user,
+          'email': email,
+          'password': password
+        };
+        this._requestLogin(credentials);
+      },
+
+      _clearForm: function() {
+        var inputEmail = this.$['form-email'];
+        var containerEmail = this.$['form-container-email'];
+        var inputPassword = this.$['form-password'];
+        inputEmail.bindValue = '';
+        containerEmail.invalid = false;
+        inputPassword.bindValue = '';
+        document.getElementById('loginErrorMessage').innerHTML = '';
+
+      },
+
+      _loginHandlerClick: function() {
+        this._setLoging(true);
+        var inputEmail = this.$['form-email'];
+        var inputPassword = this.$['form-password'];
+        var validation = inputEmail.validate() && inputPassword.validate();
+        if (validation) {
+          this.login(null, inputEmail.value, inputPassword.value);
+        }
+      },
+
+      _loginCancelHandlerClick: function() {
+        this._clearForm();
+        this.close();
+      },
+
+      _requestLogin: function(credentials) {
+        var ajax = this.$.ajax;
+        ajax.body = credentials;
+        ajax.generateRequest();
+      },
+
+      _handleLoginResponse: function() {
+        this._setLoging(false);
+        var authorization = this.$.ajax.lastResponse;
+        this.$.storage.value = authorization;
+        this.fire('authorized');
+      },
+
+      _handleErrorResponse: function() {
+        console.error(this.$.ajax.lastError);
+        this._setLoging(false);
+        var inputPassword = this.$['form-password'];
+        inputPassword.bindValue = '';
+        document.getElementById('loginErrorMessage').innerHTML =
+          'Login e/ou senha inválido(s)!';
+      },
+
+    });
+
+  </script>
+</dom-module>

@@ -1,0 +1,107 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html" />
+
+<link rel="import" href="alvar-authentication.html">
+
+<dom-module id="alvar-menu">
+  <template>
+    <style>
+      :host {
+        display: block;
+        --paper-menu-selected-item: {
+          color: var(--default-primary-color);
+          font-weight: bolder;
+        }
+      }
+
+      paper-menu {
+        padding-bottom: 0;
+      }
+
+      paper-menu a {
+        color: var(--secondary-text-color);
+        text-decoration: none;
+        font-weight: inherit;
+        display: block;
+      }
+
+      paper-icon-item {
+        cursor: pointer;
+        color: var(--secondary-text-color);
+      }
+
+    </style>
+
+    <alvar-authentication id="authentication"></alvar-authentication>
+
+
+    <paper-menu
+        id="menu" selected="{{selected}}"
+        attr-for-selected="data-route"
+        on-iron-select="_ironSelectHandler">
+      <a data-route="home" href="/">
+        <paper-icon-item>
+          <iron-icon icon="search" item-icon></iron-icon>
+          Buscar Recursos
+        </paper-icon-item>
+      </a>
+
+      <a data-route="resource-create" href="/resource/create" hidden$="[[!authenticated]]">
+        <paper-icon-item data-route="resource-create">
+          <iron-icon icon="add" item-icon></iron-icon>
+          Novo Recurso
+        </paper-icon-item>
+      </a>
+
+      <a data-route="no-result-queries-list" href="/no-result-queries/list" hidden$="[[!authenticated]]">
+        <paper-icon-item data-route="no-result-queries-list">
+          <iron-icon icon="highlight-off" item-icon></iron-icon>
+          Pesquisas Vazias
+        </paper-icon-item>
+      </a>
+    </paper-menu>
+
+    <paper-icon-item id="menu-login-item" hidden$="[[authenticated]]" on-click="_fireLogin">
+      <iron-icon icon="lock-open" item-icon></iron-icon>
+      Entrar
+    </paper-icon-item>
+
+    <!-- <paper-icon-item id="menu-logout-item" hidden$="[[!authenticated]]" on-click="_fireLoggout">
+      <iron-icon icon="lock" item-icon></iron-icon>
+      Sair
+    </paper-icon-item> -->
+
+  </template>
+  <script>
+    Polymer({
+      is: 'alvar-menu',
+
+      properties: {
+        selected: {
+          type: String,
+          value: 'home'
+        },
+        authenticated: {
+          type: Boolean,
+          value: false,
+        }
+      },
+
+      _ironSelectHandler: function() {
+        this.fire('menu-select');
+      },
+
+      _fireLogin: function() {
+        this.fire('login');
+      },
+
+      _fireLoggout: function () {
+        this.$.authentication.unauthorize();
+        this.authenticated = false;
+        this.selected = 'home';
+        this.fire('menu-select');
+      }
+
+    });
+
+  </script>
+</dom-module>

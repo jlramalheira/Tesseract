@@ -1,0 +1,122 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html" />
+<link rel="import" href="../../bower_components/paper-icon-button/paper-icon-button.html" />
+<link rel="import" href="../../bower_components/paper-item/paper-item.html" />
+<link rel="import" href="../../bower_components/paper-item/paper-icon-item.html" />
+<link rel="import" href="../../bower_components/paper-item/paper-item-body.html" />
+
+<dom-module id="decs-search-item">
+  <template>
+    <style>
+      :host {
+        display: block;
+      }
+
+      paper-icon-item {
+        margin-left: -24px;
+        width: calc(100% + 16px);
+      }
+
+      paper-icon-item[selected] {
+        font-weight: bold;
+        color: var(--default-primary-color);
+      }
+
+    </style>
+
+    <paper-icon-item selected$="[[selected]]">
+      <paper-icon-button icon="[[_iconFirstAction(opened)]]" item-icon on-click="_fireFirstAction"></paper-icon-button>
+      <paper-item-body three-line on-click="_fireFirstAction">
+        <div>[[name]]</div>
+        <template is="dom-if" if=[[opened]]>
+          <template is="dom-if" if="[[_isEmpty()]]">
+            <span secondary>Não há sinônimos</span>
+          </template>
+          <template is="dom-if" if="[[_isNotEmpty()]]">
+            <span secondary>[[_formatSynonyms(synonyms,0,3)]]</span>
+            <span secondary>[[_formatSynonyms(synonyms,1,3)]]</span>
+            <span secondary>[[_formatSynonyms(synonyms,2,3)]]</span>
+          </template>
+        </template>
+      </paper-item-body>
+      <paper-icon-button icon="[[_iconSecondAction(selected)]]" on-click="_fireSecondAction"></paper-icon-button>
+    </paper-icon-item>
+
+  </template>
+  <script>
+    Polymer({
+      is: 'decs-search-item',
+      properties: {
+        name: {
+          type: String,
+          value: '',
+        },
+        synonyms: {
+          type: Array,
+          value: function() {
+            return [];
+          }
+        },
+        selected: {
+          type: Boolean,
+          value: false,
+          notify: true,
+        },
+        opened: {
+          type: Boolean,
+          value: false,
+          notify: true,
+        }
+      },
+
+      open: function() {
+        this.opened = true;
+      },
+
+      close: function() {
+        this.opened = false;
+      },
+
+      _iconFirstAction: function(opened) {
+        return (opened) ? 'expand-less' : 'expand-more';
+      },
+
+      _iconSecondAction: function(selected) {
+        return (selected) ? 'delete' : 'add';
+      },
+
+      _isEmpty: function() {
+        var array = this.synonyms;
+        if (array) {
+          return (array.length === 0);
+        }
+        return true;
+      },
+
+      _isNotEmpty: function() {
+        if (!this.synonyms) {
+          this.synonyms = [];
+        }
+        return (this.synonyms.length > 0) ? true : false;
+      },
+
+      _formatSynonyms: function(synonyms, part, from) {
+        var howmany = Math.ceil(synonyms.length / from);
+        var slice = synonyms.slice(howmany * (part), howmany * (part + 1));
+        return slice.join(', ');
+      },
+
+      _formatReverseSynonyms: function(synonyms) {
+        return this._formatSynonyms(synonyms.reverse());
+      },
+
+      _fireFirstAction: function() {
+        this.fire('firstaction');
+      },
+
+      _fireSecondAction: function() {
+        this.fire('secondaction');
+      }
+    });
+
+  </script>
+</dom-module>

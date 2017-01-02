@@ -23,5 +23,13 @@
       "disableStackTrace": false
     }
   },
+  "dafaultUser": {
+    "creation": true,
+    "credentials": {
+      "username": "admin",
+      "email": "admin@alvar.com",
+      "password": "opensesame"
+    }
+  },
   "legacyExplorer": false
 }

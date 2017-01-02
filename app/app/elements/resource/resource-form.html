@@ -1,0 +1,115 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html" />
+<link rel="import" href="../../bower_components/iron-input/iron-input.html" />
+<link rel="import" href="../../bower_components/paper-input/paper-input-container.html" />
+<link rel="import" href="../../bower_components/paper-input/paper-input-error.html" />
+<link rel="import" href="../../bower_components/paper-input/paper-input-char-counter.html" />
+<link rel="import" href="../../bower_components/paper-input/paper-textarea.html" />
+<link rel="import" href="../alvar-api/decs-search.html" />
+
+<dom-module id="resource-form">
+  <style>
+    :host {
+      display: block;
+    }
+  </style>
+  <template>
+    <form>
+      <paper-input-container always-float-label>
+        <label>Nome</label>
+        <input id="resource-form-input-name"
+            is="iron-input"
+            type="text"
+            bind-value="{{name}}"
+            maxlength="64"
+            required/>
+        <paper-input-error>Informe um nome</paper-input-error>
+        <paper-input-char-counter></paper-input-char-counter>
+      </paper-input-container>
+      <paper-input-container always-float-label>
+        <label>Arquivo</label>
+        <input is="iron-input"
+            type="file"
+            id="fileinput"
+            required/>
+        <paper-input-error>Informe um arquivo</paper-input-error>
+      </paper-input-container>
+      <paper-textarea label="Descrição"
+          value="{{description}}"
+          maxlength="512"
+          rows="1"
+          placeholder="Drescreva o arquivo com informações úteis"
+          always-float-label
+          char-counter></paper-textarea>
+      <decs-search id="decs-search"></decs-search>
+    </form>
+  </template>
+  <script>
+    (function() {
+      Polymer({
+        is: 'resource-form',
+
+        properties: {
+          name: {
+            type: String,
+            notify: true,
+            value: ''
+          },
+          description: {
+            type: String,
+            notify: true,
+            value: ''
+          },
+        },
+
+        validate: function() {
+          var inputName = this.$['resource-form-input-name'];
+          var inputFile = this.$['fileinput'];
+          var validation = true;
+          validation &= inputName.validate();
+          validation &= inputFile.validate();
+          return validation;
+        },
+
+        serializeResource: function() {
+          var file = this.$.fileinput.files[0],
+              name = this.name,
+              description = this.description,
+              resource = this._resourceFactory(name, description);
+          return resource;
+        },
+
+        getFile: function() {
+          var file = this.$.fileinput.files[0];
+          return file;
+        },
+
+        serializeTags: function() {
+          var tags = this.$['decs-search'].serialize();
+          return tags;
+        },
+
+        reset: function() {
+          this.name = null;
+          this.description = null;
+          this.$.fileinput.value = null;
+          this.$['decs-search'].reset();
+        },
+
+        _resourceFactory: function(name, description, size, type) {
+          var resource = {
+            name: name || '',
+            description: description || '',
+            size: size || 0,
+            type: type || '',
+            path: '',
+            container: '',
+            tagsStringify: ''
+          };
+          return resource;
+        }
+
+      });
+    })();
+
+  </script>
+</dom-module>

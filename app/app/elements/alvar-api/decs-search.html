@@ -1,0 +1,209 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html" />
+<link rel="import" href="../../bower_components/iron-ajax/iron-ajax.html" />
+<link rel="import" href="../../bower_components/iron-input/iron-input.html" />
+<link rel="import" href="../../bower_components/paper-input/paper-input-container.html" />
+<link rel="import" href="../../bower_components/paper-icon-button/paper-icon-button.html" />
+<link rel="import" href="../../bower_components/paper-menu/paper-menu.html" />
+<link rel="import" href="../../bower_components/paper-spinner/paper-spinner.html" />
+
+<link rel="import" href="decs-search-item.html" />
+
+<dom-module id="decs-search">
+  <template>
+    <style>
+      :host {
+        display: block;
+        --paper-item: {
+          width: 100%;
+        }
+        ;
+        --paper-menu: {
+          width: calc(100% - 2rem);
+        }
+        ;
+        --paper-menu-selected-item: {
+          background-color: var(--light-primary-color);
+        }
+        ;
+      }
+
+      .row {
+        display: flex;
+        align-items: flex-end;
+      }
+
+      #input {
+        flex-grow: 11;
+      }
+
+      .rotate {
+        --paper-icon-button: {
+          animation: spin 4s linear infinite;
+        }
+        ;
+      }
+
+      .no-rotate {
+        --paper-icon-button: {
+          animation: none;
+        }
+        ;
+      }
+
+      @keyframes spin {
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .tags {
+        width: calc(100% - 2rem);
+      }
+
+      paper-spinner {
+        margin: 1rem auto;
+        display: block;
+      }
+
+    </style>
+
+    <iron-ajax id="decs-ajax" method="get" url="http://0.0.0.0:3000/api/Resources/searchDecs" handle-as="json"
+    on-response="_handleDecsResponse"></iron-ajax>
+    <div class="row">
+      <div id="input">
+        <paper-input-container always-float-label>
+          <label>Pesquisar por descritores</label>
+          <input is="iron-input" bind-value="{{search}}" />
+        </paper-input-container>
+      </div>
+      <div>
+        <paper-icon-button class="no-rotate" id="search-button" icon="search" on-click="_searchDecs"></paper-icon-button>
+      </div>
+    </div>
+
+    <div>
+      <template is="dom-repeat" items="[[selecteds]]">
+        <decs-search-item name="[[item.terms.pt]]" synonyms="[[item.synonyms]]" selected on-firstaction="_firstActionHandler"
+        on-secondaction="_selectedSecondActionHandler"></decs-search-item>
+      </template>
+    </div>
+
+    <div>
+      <template is="dom-repeat" items="[[results]]">
+        <decs-search-item name="[[item.terms.pt]]" synonyms="[[item.synonyms]]" on-firstaction="_firstActionHandler"
+        on-secondaction="_resultSecondActionHandler"></decs-search-item>
+      </template>
+    </div>
+
+    <div class="paper-font-body2">
+      <template is="dom-if" if="[[_isEmpty(results,searching)]]">
+        Não foram encontrados descritores no DeCS com o termo desejado.
+      </template>
+    </div>
+    <paper-spinner id="spinner" active="[[searching]]"></paper-spinner>
+
+  </template>
+  <script>
+    (function() {
+      Polymer({
+        is: 'decs-search',
+
+        properties: {
+          search: {
+            type: String,
+            reflectToAttribute: true,
+          },
+          results: {
+            type: Array,
+            notify: true,
+            readOnly: true,
+          },
+          selecteds: {
+            type: Array,
+            notify: true,
+            value: function() {
+              return [];
+            }
+          },
+          searching: {
+            type: Boolean,
+            notify: true,
+            value: false
+          }
+        },
+
+        _firstActionHandler: function(event) {
+          if (event.target.opened) {
+            event.target.close();
+          } else {
+            event.target.open();
+          }
+        },
+
+        _resultSecondActionHandler: function(event) {
+          var index = event.model.index;
+          var selectedTag = this.splice('results', index, 1);
+          this.push('selecteds', selectedTag[0]);
+        },
+
+        _selectedSecondActionHandler: function(event) {
+          var index = event.model.index;
+          this.splice('selecteds', index, 1);
+        },
+
+        _searchDecs: function() {
+          this._setResults([]);
+          if (this.search !== '') {
+            var params = {
+              'search': this.search
+            };
+            var decsAjax = this.$['decs-ajax'];
+            this.searching = true;
+            decsAjax.params = params;
+            decsAjax.generateRequest();
+          }
+        },
+
+        _handleDecsResponse: function() {
+          var decsAjax = this.$['decs-ajax'];
+          var results = decsAjax.lastResponse.result;
+          this._setResults(results);
+          this.searching = false;
+        },
+
+        _isEmpty: function(results, searching) {
+          if (!searching && results) {
+            return results.length === 0;
+          }
+          return false;
+        },
+
+        serialize: function() {
+          var tags = [];
+          for (var i = 0; i < this.selecteds.length; i++) {
+            var tag = this.selecteds[i];
+            tags.push(this._tagFactory(tag.terms.pt, tag.synonyms));
+          }
+          return JSON.parse(JSON.stringify(tags));
+        },
+
+        reset: function() {
+          this.search = null;
+          this.selecteds = [];
+          this._setResults(undefined);
+        },
+
+        _tagFactory: function(term, synonyms, mutable) {
+          var tag = {
+            'name': term || '',
+            'synonyms': synonyms || [],
+            'mutable': mutable || false,
+          };
+          return tag;
+        },
+
+      });
+    })();
+
+  </script>
+</dom-module>

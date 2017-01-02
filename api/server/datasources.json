@@ -3,19 +3,11 @@
     "name": "db",
     "connector": "memory"
   },
-  "mysql": {
-    "name": "mysql",
-    "connector": "mysql",
-    "host": "localhost",
-    "user": "alvar",
-    "password": "y1M98526",
-    "database": "alvar"
-  },
   "storage": {
     "name": "storage",
     "connector": "loopback-component-storage",
     "provider": "filesystem",
-    "root": "/home/joao/Projects/Tesseract/api/storage",
+    "root": "/home",
     "maxFileSize": "52428800"
   }
 }

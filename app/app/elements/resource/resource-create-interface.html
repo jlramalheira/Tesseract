@@ -1,0 +1,213 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html" />
+<link rel="import" href="../../bower_components/iron-ajax/iron-ajax.html" />
+<link rel="import" href="../../bower_components/paper-header-panel/paper-header-panel.html" />
+<link rel="import" href="../../bower_components/paper-material/paper-material.html" />
+<link rel="import" href="../../bower_components/paper-icon-button/paper-icon-button.html" />
+<link rel="import" href="../../bower_components/paper-toolbar/paper-toolbar.html" />
+<link rel="import" href="../../bower_components/paper-spinner/paper-spinner.html" />
+<link rel="import" href="../../bower_components/paper-toast/paper-toast.html">
+<link rel="import" href="resource-form.html" />
+<link rel="import" href="../alvar-api/alvar-authentication.html" />
+
+<dom-module id="resource-create-interface">
+
+  <template>
+    <style>
+      paper-material {
+        box-sizing: border-box;
+        width: calc(100% - 2rem);
+        margin: 1rem;
+        padding: 1rem;
+        background-color: #fff;
+      }
+
+    </style>
+    <paper-header-panel>
+      <paper-toolbar>
+        <paper-icon-button
+            icon="menu"
+            on-click="_fireMenu"
+            paper-drawer-toggle></paper-icon-button>
+        <h1 class="paper-font-title flex-1">Adicionar recurso</h1>
+        <paper-icon-button
+            icon="done"
+            disabled="[[loading]]"
+            on-click="saveFile"></paper-icon-button>
+      </paper-toolbar>
+
+      <div>
+        <paper-material elevation="1">
+          <div hidden$="[[loading]]">
+            <resource-form id="resource-form"></resource-form>
+          </div>
+          <div style="text-align: center" hidden$="[[!loading]]">
+            <paper-spinner active="[[loading]]"></paper-spinner>
+          </div>
+
+        </paper-material>
+      </div>
+
+      <paper-toast
+          text="Seu arquivo está sendo enviado"
+          opened="[[loading]]"></paper-toast>
+    </paper-header-panel>
+
+    <iron-ajax
+        id="ajax-resource"
+        url="http://0.0.0.0:3000/api/Resources"
+        method="POST"
+        handle-as="json"
+        content-type="application/json"
+        on-response="_handleResourceResponse"
+        on-error="_handleAjaxError"></iron-ajax>
+    <iron-ajax
+        id="ajax-tag"
+        url=""
+        method="POST"
+        handle-as="json"
+        content-type="application/json"
+        on-response="_handleTagsResponse"
+        on-error="_handleAjaxError"></iron-ajax>
+    <alvar-authentication id="authentication"></alvar-authentication>
+  </template>
+  <script>
+    (function() {
+      var lastResource = null;
+
+      Polymer({
+        is: 'resource-create-interface',
+
+        properties: {
+          loading: {
+            type: Boolean,
+            value: false,
+            notify: true,
+            readOnly: true,
+          },
+        },
+
+        saveFile: function() {
+          var element = this;
+          var authorization = this.$['authentication'].authorize();
+
+          if ( authorization ) {
+            var resourceForm = this.$['resource-form'];
+
+            if ( resourceForm.validate() ) {
+              var file = resourceForm.getFile();
+
+              if ( file != null ) {
+                var formData = new FormData(),
+                    xhr = new XMLHttpRequest(),
+                    fileName = new Date().valueOf() + '-' + file.name;
+
+                formData.append('file', file, fileName);
+
+                xhr.onreadystatechange = function ( event ) {
+                  if ( this.readyState === 4 ) {
+                    if ( 200 <= this.status && this.status < 400 ) {
+                      var response = JSON.parse( this.responseText ),
+                          file = response.result.files.file[0];
+                      element._saveResource( file );
+                    } else {
+                      if (this.status === 401) {
+                        element.fire('unauthorized');
+                      }
+                      element.cancel();
+                    }
+                  }
+                }
+                xhr.open('POST', 'http://0.0.0.0:3000/api/containers/fs/upload');
+                xhr.setRequestHeader('Authorization', authorization.id);
+                xhr.send(formData);
+
+                this._setLoading(true);
+              }
+            }
+          }
+          else {
+            this.fire('unauthorized');
+          }
+        },
+
+        _saveResource: function( file ) {
+          var authorization = this.$['authentication'].authorize(),
+              resource = this.$['resource-form'].serializeResource(),
+              tags = this.$['resource-form'].serializeTags(),
+              tagsStringify = [],
+              ajaxResource = this.$['ajax-resource'];
+
+          console.log(tags);
+
+          for ( var i = 0; i < tags.length; i++ ) {
+            tagsStringify.push(tags[i].name);
+            tagsStringify.push(tags[i].synonyms.join());
+          }
+
+          resource.size = file.size;
+          resource.type = file.type;
+          resource.path = file.name;
+          resource.container = file.container;
+          resource.tagsStringify = tagsStringify.join();
+
+          ajaxResource.headers = {
+            'Authorization': authorization.id
+          };
+          ajaxResource.body = JSON.parse( JSON.stringify( resource ) );
+          ajaxResource.generateRequest();
+        },
+
+        /**
+         * Handler of response of Resource to Alvar API.
+         */
+        _handleResourceResponse: function() {
+          var resource = this.$['ajax-resource'].lastResponse,
+              authorization = this.$['authentication'].authorize(),
+              ajaxTag = this.$['ajax-tag'];
+
+          var tags = this.$['resource-form'].serializeTags();
+
+          ajaxTag.headers = {
+              'Authorization': authorization.id
+            };
+          ajaxTag.url = 'http://0.0.0.0:3000/api/Resources/' +
+                        resource.id + '/tags';
+          ajaxTag.body = tags;
+          ajaxTag.generateRequest();
+
+          lastResource = resource;
+        },
+
+        _handleTagsResponse: function() {
+          var resourceForm = this.$['resource-form'];
+          resourceForm.reset();
+          this._setLoading(false);
+          this.fire('resource-created', lastResource);
+        },
+
+        _handleAjaxError: function(event) {
+          var status = event.srcElement.lastError.request.status;
+          console.log(status);
+          if (status === 401) {
+            this.fire('unauthorized');
+          }
+          this.cancel();
+        },
+
+        cancel: function() {
+          this._setLoading(false);
+        },
+
+        _fireMenu: function() {
+          this.fire('menu');
+        },
+
+        moreOptions: function() {
+          console.log('Not implemented yet.');
+        },
+
+      });
+    })();
+
+  </script>
+</dom-module>

@@ -1,0 +1,467 @@
+<link rel='import' href='../../bower_components/polymer/polymer.html' />
+
+<link rel='import' href='../../bower_components/iron-ajax/iron-ajax.html' />
+
+<link rel='import' href='../../bower_components/paper-styles/paper-styles-classes.html'>
+<link rel='import' href='../../bower_components/paper-header-panel/paper-header-panel.html' />
+<link rel='import' href='../../bower_components/paper-material/paper-material.html' />
+<link rel='import' href='../../bower_components/paper-icon-button/paper-icon-button.html' />
+<link rel='import' href='../../bower_components/paper-toolbar/paper-toolbar.html' />
+<link rel='import' href='../../bower_components/paper-spinner/paper-spinner.html' />
+<link rel="import" href="../../bower_components/paper-toast/paper-toast.html">
+
+<link rel="import" href="../file-type-icon/file-type-icon.html" />
+
+<!-- <link rel='import' href='../star-rate/star-rate.html' /> -->
+
+<dom-module id='resource-view'>
+  <template>
+    <style>
+      paper-material {
+        box-sizing: border-box;
+        width: calc(100% - 2rem);
+        margin: 1rem;
+        padding: 1rem;
+        background-color: #fff;
+      }
+
+      .label {
+        color: var(--secondary-text-color);
+      }
+
+      paper-spinner {
+        display: block;
+        margin: 5rem auto;
+      }
+
+      #header {
+        display: flex;
+        align-items: center;
+      }
+
+      #header__heading {
+        flex-grow: 1;
+        padding-left: 1rem;
+      }
+
+      #header__heading h2 {
+        color: var(--default-primary-color);
+        margin: 0;
+      }
+
+      audio, video, img {
+        width: 100%;
+      }
+
+      canvas {
+        margin: 0 auto;
+      }
+
+    </style>
+    <paper-header-panel>
+      <paper-toolbar>
+        <paper-icon-button icon="arrow-back"
+                           on-click="_fireBack"></paper-icon-button>
+        <h1 class='paper-font-title flex-1'>
+          <span>Visualizar Recurso</span>
+        </h1>
+        <paper-icon-button icon="file-download"
+                           disabled="[[loading]]"
+                           on-click="download"></paper-icon-button>
+      </paper-toolbar>
+
+      <div>
+        <paper-material elevation='1' hidden$="[[loading]]">
+          <div id="header">
+            <file-type-icon type="[[resource.type]]"></file-type-icon>
+            <div id="header__heading">
+              <h2 class="paper-font-title">[[resource.name]]</h2>
+              <span class='paper-font-body1 label'>
+                <span>[[resource.size]]</span>
+              </span>
+            </div>
+          </div>
+
+          <p>[[resource.description]]</p>
+
+          <template is="dom-if" if="[[!_isEmpty(resource.tags)]]" restamp="true">
+            <p class='paper-font-body2'>
+              <span class='paper-font-body1 label'>Descritores</span>
+              <br/>
+              <span>[[_formatTags(resource.tags)]]</span>
+            </p>
+          </template>
+
+          <p class='paper-font-body1 label'>[[_formatDate(resource.lastUpdate)]]</p>
+
+          <audio src="[[_formatFileURL(resource)]]"
+                 hidden$="[[!_isAudio(resource)]]"
+                 controls></audio>
+          <video src="[[_formatFileURL(resource)]]"
+                 hidden$="[[!_isVideo(resource)]]"
+                 controls></video>
+          <img src="[[_formatFileURL(resource)]]"
+               alt="[[resouce.name]]"
+               hidden$="[[!_isImage(resource)]]"/>
+          <canvas id="pdf-viewer"
+                  hidden$="[[!_isPdf(resource)]]"></canvas>
+
+        </paper-material>
+        <paper-material elevation="1" hidden$="[[!loading]]">
+          <paper-spinner id="spinner" active></paper-spinner>
+        </paper-material>
+      </div>
+
+      <paper-toast text="O arquivo está sendo processado." duration="10000" opened="[[loading]]" auto-fit-on-attach></paper-toast>
+    </paper-header-panel>
+
+    <iron-ajax id='ajax-resource'
+               method='GET'
+               handle-as='json'
+               content-type='application/json'
+               on-response='_handleResourceResponse'
+               on-error='_handleResourceError'></iron-ajax>
+    <iron-ajax id='ajax-archive'
+               method='GET'
+               handle-as='json'
+               content-type='application/json'
+               on-response='_handleArchiveResponse'
+               on-error='_handleArchiveError'></iron-ajax>
+  </template>
+  <script src="../../bower_components/moment/min/moment.min.js" charset="utf-8"></script>
+  <script src="../../bower_components/moment/locale/pt-br.js" charset="utf-8"></script>
+  <script src="pdf.js" charset="utf-8"></script>
+  <script>
+    // download.js v4.0, by dandavis; 2008-2015. [CCBY2] see http://danml.com/download.html for tests/usage
+    // v1 landed a FF+Chrome compat way of downloading strings to local un-named files, upgraded to use a hidden frame and optional mime
+    // v2 added named files via a[download], msSaveBlob, IE (10+) support, and window.URL support for larger+faster saves than dataURLs
+    // v3 added dataURL and Blob Input, bind-toggle arity, and legacy dataURL fallback was improved with force-download mime and base64 support. 3.1 improved safari handling.
+    // v4 adds AMD/UMD, commonJS, and plain browser support
+    // https://github.com/rndme/download
+
+    (function(root, factory) {
+      if (typeof define === 'function' && define.amd) {
+        // AMD. Register as an anonymous module.
+        define([], factory);
+      }
+      else if (typeof exports === 'object') {
+        // Node. Does not work with strict CommonJS, but
+        // only CommonJS-like environments that support module.exports,
+        // like Node.
+        module.exports = factory();
+      }
+      else {
+        // Browser globals (root is window)
+        root.download = factory();
+      }
+    }(this, function() {
+
+      return function download(data, strFileName, strMimeType) {
+
+        var self = window, // this script is only for browsers anyway...
+          u = 'application/octet-stream', // this default mime also triggers iframe downloads
+          m = strMimeType || u,
+          x = data,
+          D = document,
+          a = D.createElement('a'),
+          z = function(a) {
+            return String(a);
+          },
+          B = (self.Blob || self.MozBlob || self.WebKitBlob || z);
+        B = B.call ? B.bind(self) : Blob;
+        var fn = strFileName || 'download',
+          blob,
+          fr;
+
+
+        if (String(this) === 'true') { //reverse arguments, allowing download.bind(true, 'text/xml', 'export.xml') to act as a callback
+          x = [x, m];
+          m = x[0];
+          x = x[1];
+        }
+
+        //go ahead and download dataURLs right away
+        if (String(x).match(/^data\:[\w+\-]+\/[\w+\-]+[,;]/)) {
+          return navigator.msSaveBlob ? // IE10 can't do a[download], only Blobs:
+            navigator.msSaveBlob(d2b(x), fn) :
+            saver(x); // everyone else can save dataURLs un-processed
+        } //end if dataURL passed?
+
+        blob = x instanceof B ?
+          x :
+          new B([x], {
+            type: m
+          });
+
+
+        function d2b(u) {
+          var p = u.split(/[:;,]/),
+            t = p[1],
+            dec = p[2] === 'base64' ? atob : decodeURIComponent,
+            bin = dec(p.pop()),
+            mx = bin.length,
+            i = 0,
+            uia = new Uint8Array(mx);
+
+          for (i; i < mx; ++i) {
+            uia[i] = bin.charCodeAt(i);
+          };
+
+          return new B([uia], {
+            type: t
+          });
+        }
+
+        function saver(url, winMode) {
+
+          if ('download' in a) { //html5 A[download]
+            a.href = url;
+            a.setAttribute('download', fn);
+            a.innerHTML = 'downloading...';
+            D.body.appendChild(a);
+            setTimeout(function() {
+              a.click();
+              D.body.removeChild(a);
+              if (winMode === true) {
+                setTimeout(function() {
+                  self.URL.revokeObjectURL(a.href);
+                }, 250);
+              }
+            }, 66);
+            return true;
+          }
+
+          if (typeof safari !== 'undefined') { // handle non-a[download] safari as best we can:
+            url = 'data:' + url.replace(/^data:([\w\/\-\+]+)/, u);
+            if (!window.open(url)) { // popup blocked, offer direct download:
+              if (confirm(
+                  'Displaying New Document\n\nUse Save As... to download, then click back to return to this page.'
+                )) {
+                location.href = url;
+              }
+            }
+            return true;
+          }
+
+          //do iframe dataURL download (old ch+FF):
+          var f = D.createElement('iframe');
+          D.body.appendChild(f);
+
+          if (!winMode) { // force a mime that will download:
+            url = 'data:' + url.replace(/^data:([\w\/\-\+]+)/, u);
+          }
+          f.src = url;
+          setTimeout(function() {
+            D.body.removeChild(f);
+          }, 333);
+
+        } //end saver
+
+
+
+
+        if (navigator.msSaveBlob) { // IE10+ : (has Blob, but not a[download] or URL)
+          return navigator.msSaveBlob(blob, fn);
+        }
+
+        if (self.URL) { // simple fast and modern way using Blob and URL:
+          saver(self.URL.createObjectURL(blob), true);
+        }
+        else {
+          // handle non-Blob()+non-URL browsers:
+          if (typeof blob === 'string' || blob.constructor === z) {
+            try {
+              return saver('data:' + m + ';base64,' + self.btoa(blob));
+            }
+            catch (y) {
+              return saver('data:' + m + ',' + encodeURIComponent(blob));
+            }
+          }
+
+          // Blob but not URL:
+          fr = new FileReader();
+          fr.onload = function() {
+            saver(this.result);
+          };
+          fr.readAsDataURL(blob);
+        }
+        return true;
+      }; /* end download() */
+    }));
+
+    (function() {
+      Polymer({
+        is: 'resource-view',
+
+        properties: {
+          resourceId: {
+            type: Number,
+            observer: '_resourceIdObserver'
+          },
+          loading: {
+            type: Boolean,
+            value: false,
+            readOnly: true,
+            notify: true,
+          },
+          resource: {
+            type: Object,
+            notify: true,
+          }
+        },
+
+        _resourceIdObserver: function( newValue ) {
+          var ajaxResource = this.$['ajax-resource'];
+          ajaxResource.url = 'http://0.0.0.0:3000/api/Resources/' + newValue;
+          ajaxResource.params = {
+            'filter': JSON.stringify({
+              'include': ['tags']
+            })
+          };
+          this._setLoading(true);
+          ajaxResource.generateRequest();
+        },
+
+        _readableSize: function( sizeInBytes ) {
+          var sizes = ['bytes', 'kB', 'MB', 'GB'];
+          var factor = 1000;
+          var unit = 0;
+          while (sizeInBytes > factor) {
+            sizeInBytes = sizeInBytes / factor;
+            unit++;
+          }
+          return Number.parseFloat(sizeInBytes.toFixed(2)).toLocaleString('arab') + ' ' +
+            sizes[unit];
+        },
+
+        _handleResourceResponse: function() {
+          var ajaxResource = this.$['ajax-resource'];
+          var resource = ajaxResource.lastResponse;
+          resource.size = this._readableSize(resource.size);
+          this.resource = resource;
+          this._setLoading(false);
+        },
+
+        _handleResourceError: function() {
+          //TODO Check error
+        },
+
+        download: function() {
+          var resourcePath = this.resource.path,
+              resourceContainer = this.resource.container,
+              fileURL = 'http://0.0.0.0:3000/api/containers/' +
+                        encodeURIComponent( resourceContainer ) +
+                        '/download/' +
+                        encodeURIComponent( resourcePath );
+          download( fileURL, resourcePath );
+        },
+
+        _b64toBlob: function(b64Data, contentType, sliceSize) {
+          contentType = contentType || '';
+          sliceSize = sliceSize || 512;
+          var byteCharacters = atob(b64Data);
+          var byteArrays = [];
+
+          for (var offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+            var slice = byteCharacters.slice(offset, offset + sliceSize);
+            var byteNumbers = new Array(slice.length);
+            for (var i = 0; i < slice.length; i++) {
+              byteNumbers[i] = slice.charCodeAt(i);
+            }
+            var byteArray = new Uint8Array(byteNumbers);
+            byteArrays.push(byteArray);
+          }
+          var blob = new Blob(byteArrays, {
+            type: contentType
+          });
+          return blob;
+        },
+
+
+        _fireMenu: function() {
+          this.fire('menu');
+        },
+
+        _isEmpty: function(tags) {
+          return (tags && tags.length === 0) ? true : false;
+        },
+
+        _fireBack: function() {
+          this.fire('back');
+        },
+
+        _formatTags: function(array) {
+          if (array) {
+            return array.map(
+                function(item) {
+                  return item.name + ', ' + item.synonyms.join(', ');
+                })
+              .join(', ');
+          }
+          else {
+            return '';
+          }
+        },
+
+        _formatDate: function(dateString) {
+          var date = moment(dateString);
+          return 'Atualizado há ' + moment(date).fromNow();
+        },
+
+        _formatFileURL: function ( resource ) {
+          var resourcePath = resource.path,
+              resourceContainer = resource.container,
+              fileURL = 'http://0.0.0.0:3000/api/containers/' +
+                        encodeURIComponent( resourceContainer ) +
+                        '/download/' +
+                        encodeURIComponent( resourcePath );
+          return fileURL;
+        },
+
+        _isImage: function ( resource ) {
+          return resource.type.indexOf('image') > -1;
+        },
+
+        _isVideo: function ( resource ) {
+          return ( resource.type.indexOf('video') > -1 ) ||
+                 ( resource.type.indexOf('mpeg') > -1 );
+        },
+
+        _isAudio: function ( resource ) {
+          return resource.type.indexOf('audio') > -1;
+        },
+
+        _isPdf: function ( resource ) {
+          var isPdf = resource.type.indexOf('pdf') > -1,
+              fileURL = this._formatFileURL( resource );
+          if ( isPdf ) {
+            PDFJS.getDocument( fileURL ).then( function( pdf ) {
+              pdf.getPage(1).then(function (page) {
+                var scale = 1;
+                var viewport = page.getViewport(scale);
+
+                // Prepare canvas using PDF page dimensions.
+                var canvas = document.getElementById('pdf-viewer');
+                var context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                // Render PDF page into canvas context.
+                var renderContext = {
+                  canvasContext: context,
+                  viewport: viewport
+                };
+                page.render(renderContext);
+              });
+            });
+          }
+          return isPdf;
+        }
+
+
+
+      });
+    })();
+
+  </script>
+</dom-module>

@@ -11,6 +11,21 @@
       "required": true
     },
     "description": {
+      "type": "string"
+    },
+    "size": {
+      "type": "number",
+      "required": true
+    },
+    "type": {
+      "type": "string",
+      "required": true
+    },
+    "container": {
+      "type": "string",
+      "required": true
+    },
+    "path": {
       "type": "string",
       "required": true
     },
@@ -32,11 +47,6 @@
   },
   "validations": [],
   "relations": {
-    "archive": {
-      "type": "hasOne",
-      "model": "Archive",
-      "foreignKey": ""
-    },
     "tags": {
       "type": "hasMany",
       "model": "Tag",

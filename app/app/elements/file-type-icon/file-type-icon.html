@@ -1,0 +1,96 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html" />
+
+<dom-module id="file-type-icon">
+  <template>
+    <style>
+      :host {
+        display: inline-block;
+        --iron-icon-fill-color: #FFFFFF;
+      }
+      
+      #avatar {
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.5rem;
+        height: 2.5rem;
+        background-color: #777;
+        border-radius: 50%;
+      }
+
+    </style>
+
+    <div id="avatar">
+      <iron-icon icon="filetypes:[[_mapTypeToIcon(type)]]"></iron-icon>
+    </div>
+
+  </template>
+  <script>
+    Polymer({
+      is: 'file-type-icon',
+      properties: {
+        'type': {
+          type: String,
+          value: 'file',
+          observer: '_typeObserver'
+        }
+      },
+
+      _mapTypeToIcon: function(type) {
+        var icons = {
+          'word': ['word'],
+          'excel': ['excel', 'spreadsheet'],
+          'powerpoint': ['powerpoint', 'presentation'],
+          'pdf': ['pdf'],
+          'text': ['text'],
+          'image': ['image'],
+          'video': ['video', 'mpeg'],
+          'audio': ['audio'],
+          'zip': ['zip', 'compress'],
+        };
+
+        var mapCallback = function(item) {
+          return type.indexOf(item) > -1;
+        };
+
+        for (var icon in icons) {
+          if (icons.hasOwnProperty(icon)) {
+            var filtered = icons[icon].filter(mapCallback);
+            if (filtered.length > 0) {
+              return icon;
+            }
+          }
+        }
+
+        return 'file';
+      },
+
+      _mapIconToColor: function(icon) {
+        var icons = {
+          'word': '#673AB7',
+          'excel': '#4CAF50',
+          'powerpoint': '#FF5722',
+          'pdf': '#F44336',
+          'text': '#2196F3',
+          'image': '#FFC107',
+          'video': '#9C27B0',
+          'audio': '#E91E63',
+          'zip': '#607D8B',
+          'file': '#9E9E9E',
+        };
+        return icons[icon];
+      },
+
+      _typeObserver: function(newValue) {
+        this.$['avatar'].style['background-color'] = this._mapIconToColor(this._mapTypeToIcon(
+          newValue));
+        this.updateStyles();
+      },
+
+
+
+    });
+
+  </script>
+</dom-module>

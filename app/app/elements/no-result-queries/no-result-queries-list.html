@@ -1,0 +1,164 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html" />
+
+<link rel="import" href="../../bower_components/iron-ajax/iron-ajax.html" />
+<link rel="import" href="../../bower_components/iron-icons/iron-icons.html" />
+
+<link rel="import" href="../../bower_components/paper-header-panel/paper-header-panel.html" />
+<link rel="import" href="../../bower_components/paper-material/paper-material.html" />
+<link rel="import" href="../../bower_components/paper-icon-button/paper-icon-button.html" />
+<link rel="import" href="../../bower_components/paper-toolbar/paper-toolbar.html" />
+<link rel="import" href="../../bower_components/paper-datatable/paper-datatable.html">
+<link rel="import" href="../../bower_components/paper-datatable/paper-datatable-column.html">
+<link rel="import" href="../../bower_components/paper-datatable/paper-datatable-card.html">
+
+<link rel="import" href="../file-type-icon/file-type-icon.html" />
+
+<dom-module id="no-result-queries-list">
+  <template>
+    <style>
+      :host {
+        --paper-input-container-color: var(--light-primary-color);
+        --paper-input-container-input: {
+          color: #ffffff;
+        }
+        ;
+      }
+
+      input::placeholder {
+        color: white;
+      }
+
+      paper-material {
+        box-sizing: border-box;
+        width: calc(100% - 2rem);
+        margin: 1rem;
+        background-color: #fff;
+      }
+
+      paper-icon-item {
+        box-sizing: border-box;
+        width: 100%;
+        display: flex;
+        align-items: center;
+      }
+
+      paper-spinner {
+        position: absolute;
+        top: 5rem;
+        left: calc(50%);
+      }
+
+      a {
+        width: calc(100%);
+        display: block;
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .favorite {
+        margin-left: 1rem;
+        cursor: pointer;
+        text-align: right;
+      }
+
+      .text-center {
+        text-align: center;
+      }
+
+      .error-message {
+        margin: 2rem 1rem;
+        color: var(--secondary-text-color);
+      }
+
+      .big {
+        --iron-icon-height: 4rem;
+        --iron-icon-width: 4rem;
+        color: var(--disabled-text-color);
+      }
+
+    </style>
+    <paper-header-panel>
+      <paper-toolbar>
+        <paper-icon-button icon="menu" on-click="_fireMenu" paper-drawer-toggle></paper-icon-button>
+        <span class="paper-font-title flex-1">
+          <paper-input value="{{query}}" label="" placeholder="Procurar" type="text" no-label-float></paper-input>
+        </span>
+        <paper-icon-button icon="search" on-click="search"></paper-icon-button>
+        <paper-icon-button icon="refresh" disabled$="[[loading]]" on-click="refresh"></paper-icon-button>
+      </paper-toolbar>
+      <div>
+        <paper-material>
+          <paper-datatable data="{{noResultQueries}}">
+            <paper-datatable-column header="Termo" property="search" sortable></paper-datatable-column>
+            <paper-datatable-column header="Quantidade" property="counter" sortable></paper-datatable-column>
+            <paper-datatable-column header="Última Pesquisa" property="lastUpdateBeautify" sortable></paper-datatable-column>
+          </paper-datatable>
+        </paper-material>
+      </div>
+    </paper-header-panel>
+
+    <iron-ajax id="ajax" url="http://0.0.0.0:3000/api/NoResultQueries" method="GET" handle-as="json"
+    on-response="_handleNoReultQueriesResponse"></iron-ajax>
+  </template>
+  <script src="../../bower_components/moment/min/moment.min.js" charset="utf-8"></script>
+  <script src="../../bower_components/moment/locale/pt-br.js" charset="utf-8"></script>
+  <script>
+    (function() {
+      Polymer({
+        is: 'no-result-queries-list',
+
+        properties: {
+          query: {
+            type: String,
+            value: '',
+          },
+          loading: {
+            type: Boolean,
+            value: false,
+            readOnly: true,
+            notify: true,
+          },
+          noResultQueries: {
+            type: Array,
+            value: function() {
+              return [];
+            }
+          },
+        },
+
+        refresh: function() {
+          var ajax = this.$['ajax'];
+
+          var filter = JSON.stringify({
+            'order': 'counter DESC'
+          });
+
+          ajax.params = {
+            'filter': filter
+          };
+
+          this._setLoading(true);
+          ajax.generateRequest();
+        },
+
+        _handleNoReultQueriesResponse: function() {
+          var noResultQueries = this.$['ajax'].lastResponse;
+          this._setLoading(false);
+          var host = this;
+          var beautifyNoResultQueries = noResultQueries.map(function(item) {
+            item.lastUpdateBeautify = host._formatDate(item.lastUpdate);
+            return item;
+          });
+          this.noResultQueries = beautifyNoResultQueries;
+        },
+
+        _formatDate: function(dateString) {
+          var date = moment(dateString);
+          return moment(date).format('L');
+        }
+
+      });
+    })();
+
+  </script>
+</dom-module>

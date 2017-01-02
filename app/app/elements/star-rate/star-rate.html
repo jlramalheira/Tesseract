@@ -1,0 +1,75 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html" />
+<link rel="import" href="../../bower_components/iron-icons/iron-icons.html">
+
+<dom-module is="star-rate">
+  <template>
+    <template id="stars-filled" is="dom-repeat">
+      <iron-icon icon="star" index="[[item]]" on-click="_rate"></iron-icon>
+    </template>
+    <template id="stars-bordered" is="dom-repeat">
+      <iron-icon icon="star-border" index="[[item]]" on-click="_rate"></iron-icon>
+    </template>
+    <br/>
+    <template id="stars" is="dom-repeat">
+      <template is="dom-if" if="[[_isFilled(index)]]">
+        <iron-icon icon="star" index="[[index]]" on-click="_rate"></iron-icon>
+      </template>
+      <template is="dom-if" if="[[!_isFilled(index)]]">
+        <iron-icon icon="star-border" index="[[index]]" on-click="_rate"></iron-icon>
+      </template>
+    </template>
+  </template>
+
+  <script>
+    (function() {
+      Polymer({
+        is: 'star-rate',
+
+        properties: {
+          stars: {
+            type: Number,
+            value: 5,
+            reflectToAttribute: true,
+          },
+          rating: {
+            type: Number,
+            value: 0,
+            reflectToAttribute: true,
+          }
+        },
+
+        observers: [
+          '_changeStars(stars,rating)'
+        ],
+
+        _setStarsFilled: function(value) {
+          var array = new Array(value);
+          for (var i = 1; i <= value; array[i - 1] = i++) {}
+          this.$['stars-filled'].items = array;
+        },
+
+        _setStarsBordered: function(value) {
+          var array = new Array(value);
+          var index = this.rating + 1;
+          for (var i = 0; i < array.length; array[i++] = index++) {}
+          this.$['stars-bordered'].items = array;
+        },
+
+        _changeStars: function(stars, rating) {
+          var starsBordered = stars - rating;
+          if (starsBordered < 0) {
+            starsBordered = stars;
+          }
+          this._setStarsFilled(rating);
+          this._setStarsBordered(starsBordered);
+        },
+
+        _rate: function(e) {
+          this.rating = e.srcElement.index;
+        }
+
+      });
+    })();
+
+  </script>
+</dom-module>
